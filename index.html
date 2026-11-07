@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seizure Alert</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- Setup screen (Person B) -->
+  <section id="setup" class="screen">
+    <h1>Seizure Alert</h1>
+    <p class="muted">Watches for convulsive seizures and alerts your emergency contacts. Not a medical device.</p>
+    <label>Person's name <input id="name" placeholder="e.g. Alex" /></label>
+    <p class="muted small">Emergency contacts are set on the server (CONTACTS in .env.local).</p>
+    <div class="row">
+      <button id="testAlert" class="secondary">Send test alert</button>
+      <button id="start">Start monitoring</button>
+    </div>
+    <p id="setupMsg" class="muted small"></p>
+  </section>
+
+  <!-- Monitoring screen -->
+  <section id="monitor" class="screen hidden">
+    <div id="banner" class="banner ok">Loading model...</div>
+    <div class="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="meter"><div id="meterFill"></div></div>
+    <pre id="debug"></pre>
+    <div class="row">
+      <button id="useCamera" class="secondary">Use webcam</button>
+      <label class="file secondary">Test with a video file <input id="fileInput" type="file" accept="video/*" /></label>
+      <button id="fakeTrigger" class="secondary">Fake seizure (testing)</button>
+    </div>
+  </section>
+
+  <!-- Alarm overlay -->
+  <div id="alarm" class="alarm hidden">
+    <h2 id="alarmTitle">Possible seizure detected</h2>
+    <p id="alarmText">Calling emergency contacts in <span id="countdown">15</span> seconds</p>
+    <p id="seizureTimer" class="timer">0:00</p>
+    <button id="cancel" class="cancel">I'm okay, cancel</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

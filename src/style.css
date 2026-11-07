@@ -1,0 +1,27 @@
+:root { --bg: #0f1115; --panel: #1a1d24; --text: #eef0f4; --muted: #9aa1ad; --ok: #1f7a4d; --warn: #b7791f; --bad: #c53030; --accent: #3b82f6; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+.screen { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+.hidden { display: none !important; }
+h1 { margin: 0 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+label { display: block; margin: 16px 0; }
+input:not([type=file]) { display: block; width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid #333; background: var(--panel); color: var(--text); font-size: 16px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+button, .file { padding: 12px 16px; border: 0; border-radius: 8px; background: var(--accent); color: white; font-size: 16px; cursor: pointer; margin: 0; }
+.secondary { background: var(--panel); border: 1px solid #333; }
+.file input { display: none; }
+.banner { padding: 12px 16px; border-radius: 8px; font-weight: 600; margin-bottom: 12px; }
+.banner.ok { background: var(--ok); } .banner.warn { background: var(--warn); } .banner.bad { background: var(--bad); }
+.stage { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; }
+.stage video, .stage canvas { width: 100%; display: block; }
+.stage canvas { position: absolute; inset: 0; height: 100%; }
+.meter { height: 12px; background: var(--panel); border-radius: 6px; margin-top: 12px; overflow: hidden; }
+#meterFill { height: 100%; width: 0; background: var(--warn); transition: width 0.2s; }
+pre { background: var(--panel); padding: 12px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
+.alarm { position: fixed; inset: 0; background: var(--bad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; z-index: 10; }
+.alarm h2 { font-size: 32px; margin: 0 0 12px; }
+.alarm p { font-size: 20px; }
+.timer { font-size: 48px !important; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cancel { background: white; color: var(--bad); font-size: 24px; padding: 20px 32px; font-weight: 700; }
