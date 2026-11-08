@@ -3,30 +3,35 @@
 // Usage:
 //   const detector = createDetector({ onSeizureStart, onSeizureEnd });
 //   every frame: const status = detector.update(landmarks, timestampMs);
+//   detector.config can be changed at runtime (the settings panel does this).
 
-// MediaPipe Pose landmark indices
-const LIMBS = {
+// MediaPipe Pose landmark indices for the joints we watch
+export const JOINTS = {
   leftElbow: 13, rightElbow: 14,
   leftWrist: 15, rightWrist: 16,
   leftKnee: 25, rightKnee: 26,
   leftAnkle: 27, rightAnkle: 28,
 };
+const LEG_JOINTS = ['leftKnee', 'rightKnee', 'leftAnkle', 'rightAnkle'];
 const L_SHOULDER = 11, R_SHOULDER = 12, L_HIP = 23, R_HIP = 24;
 
 export const DEFAULT_CONFIG = {
-  windowSec: 4,          // seconds of motion analyzed at once
-  sampleHz: 30,          // motion is resampled to this rate before the FFT
-  minFreq: 2.0,          // rhythmic jerking band, in Hz (tune on your clips)
+  windowSec: 4,            // seconds of motion analyzed at once
+  sampleHz: 30,            // motion is resampled to this rate before the FFT
+  minFreq: 2.0,            // rhythmic jerking band, in Hz
   maxFreq: 7.0,
-  energyThreshold: 0.6,  // RMS limb speed, in torso lengths per second
-  rhythmThreshold: 0.35, // share of motion power near the dominant frequency
-  minActiveLimbs: 3,     // how many limbs must look seizure-like at once
-  startAfterSec: 10,     // seizure-like this long -> onSeizureStart
-  endAfterSec: 5,        // calm this long -> onSeizureEnd
-  minVisibility: 0.5,    // ignore landmarks MediaPipe is unsure about
-  requireLyingDown: true, // only count shaking while the torso is near horizontal
-                          // (blocks running in place, dancing; set false to test seated)
-  analyzeEveryMs: 200,   // run the analysis 5 times per second
+  energyThreshold: 0.6,    // RMS joint speed, in torso lengths per second (lower = more sensitive)
+  rhythmThreshold: 0.35,   // share of motion power near the dominant frequency
+  minActiveJoints: 3,      // seizure-like joints needed when legs are in view
+  minActiveJointsUpper: 2, // ...when only the upper body is in view (e.g. sitting at a desk)
+  requireBothSides: true,  // tonic-clonic seizures involve both sides; blocks one-arm waving, brushing teeth
+  startAfterSec: 10,       // seizure-like this long -> onSeizureStart
+  endAfterSec: 5,          // calm this long -> onSeizureEnd
+  minVisibility: 0.5,      // ignore landmarks MediaPipe is unsure about
+  requireLyingDown: false, // "bed mode": only count shaking while the torso looks horizontal in the image.
+                           // Only use with a camera at the side of the bed: from above or the foot
+                           // of the bed, a lying torso looks vertical and seizures would be missed.
+  analyzeEveryMs: 200,     // run the analysis 5 times per second
 };
 
 export function createDetector({ onSeizureStart = () => {}, onSeizureEnd = () => {}, config = {} } = {}) {
@@ -56,21 +61,41 @@ export function createDetector({ onSeizureStart = () => {}, onSeizureEnd = () =>
   }
 
   function analyze(t) {
-    const limbs = {};
-    let active = 0;
+    const joints = {};
     const span = buffer.length ? (buffer[buffer.length - 1].t - buffer[0].t) / 1000 : 0;
+    const warmingUp = span < cfg.windowSec * 0.9;
 
-    if (span >= cfg.windowSec * 0.9) {
-      for (const name of Object.keys(LIMBS)) {
-        const f = limbFeatures(name);
-        limbs[name] = f;
-        if (f && f.active) active++;
+    let active = 0, visible = 0, legsVisible = 0, leftActive = false, rightActive = false;
+    if (!warmingUp) {
+      for (const name of Object.keys(JOINTS)) {
+        const f = jointFeatures(name);
+        joints[name] = f;
+        if (!f) continue;
+        visible++;
+        if (LEG_JOINTS.includes(name)) legsVisible++;
+        if (f.active) {
+          active++;
+          if (name.startsWith('left')) leftActive = true; else rightActive = true;
+        }
       }
     }
 
+    // fewer joints can be seen when only the upper body is in frame, so ask for fewer
+    const upperBodyOnly = legsVisible < 2;
+    const required = upperBodyOnly ? cfg.minActiveJointsUpper : cfg.minActiveJoints;
+
     const lyingShare = buffer.length ? buffer.filter(f => f.lying).length / buffer.length : 0;
-    const postureOk = !cfg.requireLyingDown || lyingShare > 0.5;
-    const seizureLike = active >= cfg.minActiveLimbs && postureOk;
+    const lying = lyingShare > 0.5;
+    const postureOk = !cfg.requireLyingDown || lying;
+    const sidesOk = !cfg.requireBothSides || (leftActive && rightActive);
+    const seizureLike = !warmingUp && active >= required && sidesOk && postureOk;
+
+    // why we are NOT counting this as seizure-like, for the UI
+    let blockedBy = null;
+    if (!warmingUp && active >= required) {
+      if (!sidesOk) blockedBy = 'only one side of the body is shaking';
+      else if (!postureOk) blockedBy = 'bed mode is on and the person is not lying down';
+    }
 
     // state machine
     if (seizureLike) {
@@ -96,19 +121,26 @@ export function createDetector({ onSeizureStart = () => {}, onSeizureEnd = () =>
     }
 
     return {
-      activeLimbs: active,
-      totalLimbs: Object.keys(LIMBS).length,
-      limbs,
-      lying: lyingShare > 0.5,
+      warmingUp,
+      warmupSec: span,
+      activeJoints: active,
+      visibleJoints: visible,
+      totalJoints: Object.keys(JOINTS).length,
+      requiredJoints: required,
+      upperBodyOnly,
+      joints,
+      lying,
+      blockedBy,
+      seizureLike,
       sustainedSec: seizureLikeSince === null ? 0 : (t - seizureLikeSince) / 1000,
       inSeizure,
       seizureSec: inSeizure ? (t - seizureStartT) / 1000 : 0,
     };
   }
 
-  function limbFeatures(name) {
+  function jointFeatures(name) {
     const samples = buffer.filter(f => f.pts[name]);
-    if (samples.length < buffer.length * 0.7 || samples.length < 10) return null; // limb not visible enough
+    if (samples.length < buffer.length * 0.7 || samples.length < 10) return null; // joint not visible enough
 
     const xs = resample(samples.map(f => f.t), samples.map(f => f.pts[name].x), cfg.sampleHz);
     const ys = resample(samples.map(f => f.t), samples.map(f => f.pts[name].y), cfg.sampleHz);
@@ -143,12 +175,14 @@ export function createDetector({ onSeizureStart = () => {}, onSeizureEnd = () =>
       energy >= cfg.energyThreshold &&
       peakFreq >= cfg.minFreq && peakFreq <= cfg.maxFreq &&
       rhythm >= cfg.rhythmThreshold;
+    // 'seizure' = passes every check, 'moving' = noticeable motion but not seizure-like
+    const level = active ? 'seizure' : energy >= cfg.energyThreshold * 0.4 ? 'moving' : 'calm';
 
-    return { energy, peakFreq, rhythm, active };
+    return { energy, peakFreq, rhythm, active, level };
   }
 
   function reset() {
-    buffer = []; seizureLikeSince = null; calmSince = null;
+    buffer = []; seizureLikeSince = null; calmSince = null; lastAnalysisT = -Infinity;
     inSeizure = false; seizureStartT = null; status = emptyStatus();
   }
 
@@ -166,13 +200,13 @@ function normalize(lm, cfg) {
   if (torso < 0.02) return null; // body too small or torso not found
 
   const pts = {};
-  for (const [name, idx] of Object.entries(LIMBS)) {
+  for (const [name, idx] of Object.entries(JOINTS)) {
     const p = lm[idx];
     pts[name] = (p.visibility ?? 1) >= cfg.minVisibility
       ? { x: (p.x - hip.x) / torso, y: (p.y - hip.y) / torso }
       : null;
   }
-  // torso angle from vertical: near 0 when standing, near 90 when lying down
+  // torso angle from vertical in the image: near 0 when upright, near 90 when horizontal
   const angle = Math.abs(Math.atan2(sh.x - hip.x, hip.y - sh.y)) * 180 / Math.PI;
   const lying = angle > 50 && angle < 130;
   return { pts, lying };
@@ -229,5 +263,9 @@ function spectrum(dx, dy, hz) {
 }
 
 function emptyStatus() {
-  return { activeLimbs: 0, totalLimbs: 8, limbs: {}, lying: false, sustainedSec: 0, inSeizure: false, seizureSec: 0 };
+  return {
+    warmingUp: true, warmupSec: 0, activeJoints: 0, visibleJoints: 0, totalJoints: 8,
+    requiredJoints: DEFAULT_CONFIG.minActiveJoints, upperBodyOnly: false, joints: {},
+    lying: false, blockedBy: null, seizureLike: false, sustainedSec: 0, inSeizure: false, seizureSec: 0,
+  };
 }

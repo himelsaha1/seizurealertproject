@@ -1,25 +1,75 @@
-:root { --bg: #0f1115; --panel: #1a1d24; --text: #eef0f4; --muted: #9aa1ad; --ok: #1f7a4d; --warn: #b7791f; --bad: #c53030; --accent: #3b82f6; }
+:root {
+  --bg: #0f1115; --panel: #1a1d24; --border: #2c313b; --text: #eef0f4; --muted: #9aa1ad;
+  --ok: #1f7a4d; --warn: #b7791f; --bad: #c53030; --accent: #3b82f6;
+  --calm: #e5e7eb; --moving: #facc15; --seizure: #ef4444;
+}
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
-.screen { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+.screen { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
 .hidden { display: none !important; }
 h1 { margin: 0 0 8px; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 label { display: block; margin: 16px 0; }
-input:not([type=file]) { display: block; width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid #333; background: var(--panel); color: var(--text); font-size: 16px; }
+input:not([type=file]):not([type=range]):not([type=checkbox]) { display: block; width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 16px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 button, .file { padding: 12px 16px; border: 0; border-radius: 8px; background: var(--accent); color: white; font-size: 16px; cursor: pointer; margin: 0; }
-.secondary { background: var(--panel); border: 1px solid #333; }
+.secondary { background: var(--panel); border: 1px solid var(--border); }
+.secondary:hover { border-color: #4b5563; }
 .file input { display: none; }
-.banner { padding: 12px 16px; border-radius: 8px; font-weight: 600; margin-bottom: 12px; }
+
+/* banner */
+.banner { padding: 12px 16px; border-radius: 8px; font-weight: 600; margin-bottom: 12px; transition: background 0.2s; }
 .banner.ok { background: var(--ok); } .banner.warn { background: var(--warn); } .banner.bad { background: var(--bad); }
-.stage { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; }
-.stage video, .stage canvas { width: 100%; display: block; }
-.stage canvas { position: absolute; inset: 0; height: 100%; }
-.meter { height: 12px; background: var(--panel); border-radius: 6px; margin-top: 12px; overflow: hidden; }
+
+/* video + skeleton */
+/* --ar is set from the video's real size in main.js, so the box always matches the video.
+   Width is capped so tall (portrait phone) videos still fit on screen. */
+.stage { --ar: 4 / 3; position: relative; width: min(100%, calc(70vh * (var(--ar)))); margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: var(--ar); }
+.stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.stage.mirror video, .stage.mirror canvas { transform: scaleX(-1); }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 12px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,0.55); font-size: 13px; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.calm { background: var(--calm); } .dot.moving { background: var(--moving); } .dot.seizure { background: var(--seizure); }
+
+/* status cards */
+.cards { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; margin-top: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.card-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 4px; }
+.card-value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card-value .muted { font-size: 14px; font-weight: 400; }
+.card-sub { font-size: 13px; margin-top: 4px; }
+.alert-text { color: var(--seizure); }
+@media (max-width: 600px) { .cards { grid-template-columns: 1fr 1fr; } .card.wide { grid-column: 1 / -1; } }
+
+.meter { height: 12px; background: var(--bg); border-radius: 6px; margin-top: 6px; overflow: hidden; }
 #meterFill { height: 100%; width: 0; background: var(--warn); transition: width 0.2s; }
+#meterFill.bad { background: var(--bad); }
+
+.hint { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: rgba(183,121,31,0.15); border: 1px solid rgba(183,121,31,0.5); font-size: 14px; }
+
+/* collapsible panels */
+.panel { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0 14px; }
+.panel summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.panel[open] { padding-bottom: 14px; }
+.panel pre { margin: 0; background: var(--bg); }
+
+/* settings */
+.settings { display: grid; gap: 4px; }
+.setting { margin: 8px 0; }
+.setting-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.setting-text { display: flex; flex-direction: column; gap: 2px; }
+.setting-label { font-size: 15px; }
+.setting-hint { font-size: 13px; }
+.setting-value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.setting input[type=range] { width: 100%; margin-top: 6px; accent-color: var(--accent); }
+.setting.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.setting.check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+
 pre { background: var(--panel); padding: 12px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
+
+/* alarm */
 .alarm { position: fixed; inset: 0; background: var(--bad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; z-index: 10; }
 .alarm h2 { font-size: 32px; margin: 0 0 12px; }
 .alarm p { font-size: 20px; }

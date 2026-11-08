@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <!-- Setup screen (Person B) -->
+  <!-- Setup screen -->
   <section id="setup" class="screen">
     <h1>Seizure Alert</h1>
     <p class="muted">Watches for convulsive seizures and alerts your emergency contacts. Not a medical device.</p>
@@ -22,18 +22,54 @@
 
   <!-- Monitoring screen -->
   <section id="monitor" class="screen hidden">
-    <div id="banner" class="banner ok">Loading model...</div>
-    <div class="stage">
+    <div id="banner" class="banner ok">Loading pose model...</div>
+
+    <div id="stage" class="stage">
       <video id="video" playsinline muted></video>
       <canvas id="overlay"></canvas>
+      <div class="legend">
+        <span><i class="dot calm"></i>calm</span>
+        <span><i class="dot moving"></i>moving</span>
+        <span><i class="dot seizure"></i>seizure-like</span>
+      </div>
     </div>
-    <div class="meter"><div id="meterFill"></div></div>
-    <pre id="debug"></pre>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Joints shaking</div>
+        <div class="card-value"><span id="activeCount">0</span> <span class="muted">/ <span id="requiredCount">3</span> needed</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Joints in view</div>
+        <div class="card-value"><span id="visibleCount">0</span> <span class="muted">/ 8</span></div>
+        <div id="viewMode" class="card-sub muted"></div>
+      </div>
+      <div class="card wide">
+        <div class="card-label">Alarm countdown</div>
+        <div class="meter"><div id="meterFill"></div></div>
+        <div id="meterText" class="card-sub muted">No seizure-like movement</div>
+      </div>
+    </div>
+    <p id="hint" class="hint hidden"></p>
+
     <div class="row">
       <button id="useCamera" class="secondary">Use webcam</button>
       <label class="file secondary">Test with a video file <input id="fileInput" type="file" accept="video/*" /></label>
       <button id="fakeTrigger" class="secondary">Fake seizure (testing)</button>
     </div>
+
+    <details class="panel">
+      <summary>Detection settings</summary>
+      <div id="settings" class="settings"></div>
+      <div class="row">
+        <button id="resetSettings" class="secondary">Reset to defaults</button>
+      </div>
+    </details>
+
+    <details class="panel">
+      <summary>Technical details</summary>
+      <pre id="debug"></pre>
+    </details>
   </section>
 
   <!-- Alarm overlay -->
