@@ -17,6 +17,27 @@ Open the URL vercel prints. The webcam only works on localhost or HTTPS.
 
 ## Files
 
+Twilio trial mode is enabled by default. SMS uses the predefined
+`sms_internal_alerts` template, and calls use Twilio's `voice_speech_recognition`
+trial webhook. These deliver generic demonstration content, not a custom
+seizure warning. Only verified trial recipients can receive them. Set
+`TWILIO_FROM` to the assigned Voice trial sender. If Messaging assigns a
+different sender for the recipient, set `TWILIO_SMS_FROM` to that number.
+Set
+`TWILIO_TRIAL_MODE=false` only after upgrading to use custom content and
+`TWILIO_FROM`. API acceptance does not confirm delivery.
+
+If the local backend does not load `.env.local`, launch from PowerShell with:
+
+```powershell
+node --env-file=.env.local -e "require('child_process').spawnSync('npx.cmd', ['vercel', 'dev'], {stdio: 'inherit', shell: true})"
+```
+
+Use the Test alert button once to request a real demo call and SMS. Failures
+now appear on the page. The simulated detection button exercises the same
+notification endpoint after the countdown. Keep this prototype private;
+the endpoint does not yet have authentication or rate limiting.
+
 - `src/main.js` camera, pose tracking, drawing, wiring
 - `src/detector.js` seizure detection rules (tune `DEFAULT_CONFIG`)
 - `src/alerts.js` alarm, countdown, seizure timer, calls `/api/alert`

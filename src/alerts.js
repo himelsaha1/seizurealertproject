@@ -8,11 +8,15 @@ export function createAlerts({ getName, onUi }) {
   let countdownLeft = 0;
   let tick = null, urgentTimer = null, beep = null;
   let audio = null, location = null;
+  let notificationText = '';
+  let generation = 0;
 
   // ---------- public ----------
   function seizureStarted() {
     if (state !== 'idle') return;
     state = 'countdown';
+    generation++;
+    notificationText = '';
     seizureStartMs = Date.now();
     seizureEndedSec = null;
     countdownLeft = COUNTDOWN_SEC;
@@ -34,6 +38,7 @@ export function createAlerts({ getName, onUi }) {
   }
 
   function cancel() {
+    generation++;
     clearInterval(tick); clearTimeout(urgentTimer);
     stopAlarm();
     state = 'idle';
@@ -49,7 +54,7 @@ export function createAlerts({ getName, onUi }) {
         body: JSON.stringify({ kind, name: getName(), durationSec, lat: location?.lat, lng: location?.lng }),
       });
       const data = await res.json().catch(() => ({}));
-      return res.ok ? { ok: true, data } : { ok: false, error: data.error || res.status };
+      return res.ok && data.ok === true ? { ok: true, data } : { ok: false, error: data.error || 'The backend did not confirm notification acceptance' };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -83,9 +88,15 @@ export function createAlerts({ getName, onUi }) {
     if (state === 'countdown') {
       countdownLeft--;
       if (countdownLeft <= 0) {
-        state = 'sent';
-        send('start');
-        if (seizureEndedSec !== null) send('end', seizureEndedSec);
+        state = 'sending';
+        const current = generation;
+        send('start').then(result => {
+          if (current !== generation) return;
+          state = result.ok ? 'sent' : 'failed';
+          notificationText = result.ok ? 'Notification requests accepted. Delivery is not confirmed.' : `Notification failed: ${result.error}`;
+          if (result.ok && seizureEndedSec !== null) send('end', seizureEndedSec);
+          render();
+        });
       }
     }
     render();
@@ -117,11 +128,15 @@ export function createAlerts({ getName, onUi }) {
       onUi({ alarmVisible: true, title: 'Possible seizure detected',
         text: `Calling emergency contacts in <span>${countdownLeft}</span> seconds`, timer, cancelVisible: true });
     } else {
-      onUi({ alarmVisible: true, title: 'Emergency contacts alerted',
-        text: seizureEndedSec !== null ? `Shaking stopped after about ${seizureEndedSec} seconds` : 'Help is being notified',
+      onUi({ alarmVisible: true, title: state === 'sending' ? 'Sending demo notifications' : state === 'failed' ? 'Notification failed' : 'Notification requests accepted',
+        text: state === 'sending' ? 'Waiting for the notification service...' : escapeHtml(notificationText),
         timer, cancelVisible: true });
     }
   }
 
   return { seizureStarted, seizureEnded, cancel, send, unlockAudio, requestLocation, keepAwake };
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }

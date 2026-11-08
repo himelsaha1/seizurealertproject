@@ -29,9 +29,11 @@ const detector = createDetector({
 // ---------- setup screen ----------
 $('name').value = localStorage.getItem('name') || '';
 $('testAlert').onclick = async () => {
+  $('testAlert').disabled = true;
   $('setupMsg').textContent = 'Sending test alert...';
   const r = await alerts.send('test');
-  $('setupMsg').textContent = r.ok ? 'Test sent. Phones should ring or buzz.' : `Failed: ${r.error}`;
+  $('setupMsg').textContent = r.ok ? 'Twilio accepted the test requests. Check your phone; trial content is generic. Delivery is not yet confirmed.' : `Test incomplete: ${r.error}`;
+  $('testAlert').disabled = false;
 };
 $('start').onclick = async () => {
   localStorage.setItem('name', $('name').value.trim());
